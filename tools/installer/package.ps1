@@ -11,8 +11,11 @@ New-Item -ItemType Directory -Force $OutputDirectory | Out-Null
 $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $commit = (& git -C $root rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the source commit' }
-$dirty = @(& git -C $root status --porcelain --untracked-files=no).Count -gt 0
+# Generators write LF files into a Windows checkout. Compare content rather than
+# relying on the index's cached modification flags after generation.
+$changes = @(& git -C $root diff --ignore-cr-at-eol --name-only HEAD --)
 if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect source state' }
+$dirty = $changes.Count -gt 0
 $build = Join-Path $root '_work\build\vs'
 $effects = Join-Path $root '_work\build\gen\fx11\effects'
 $stage = Join-Path $OutputDirectory ('stage-'+[Guid]::NewGuid().ToString('N'))
@@ -47,6 +50,7 @@ $info = [ordered]@{
     SourceCommit=$commit
     Configuration=$Configuration
     SourceDirty=$dirty
+    SourceChangedFiles=$changes
     ExecutableSHA256=(Get-FileHash -LiteralPath (Join-Path $stage 'BlurRebuilt.exe')).Hash
     Files=$hashes
 }

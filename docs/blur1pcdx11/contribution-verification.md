@@ -12,3 +12,12 @@ The separate race colour corruption is still under investigation. The intermitte
 The V2 installer retains the earlier setup identity and backup directory to support upgrades with original-file restoration. Its visible name, shortcuts and project URL identify Blur DX11 V2. Package preparation records the source commit, build configuration and payload hashes in build-info.json, and installer preparation verifies those files before compiling setup.
 
 The release workflow builds candidates on main and pull requests. Version tags and an explicit manual request create a draft preview after the installer fixture passes. Publication follows gameplay verification. Clean Windows first-time prerequisite installation and mixed-monitor hot-plug remain pending.
+
+
+## Published preview verification
+
+The v2.0.0-preview.1 assets were built from 35f7fe8bf7d499364e6744f0069d2ec696fa7577 using the standard x64 Release pipeline. Both the full build and the final incremental check reported zero errors. The installed executable SHA-256 is 15878947EFBB8D3BF16667E1040A0B440D91DE7961BBFEF412ED6CC68AD70566.
+
+The 5,000-file installer passed fresh install, update, migration from the previous Blur Rebuilt setup, uninstall, original-file restoration, busy-target rejection and damaged backup rejection in isolated fixture folders. The installed game loaded a race, opened the normal pause menu, populated Options and displayed all eight Graphics rows at 1280x720 windowed with the 90 FPS setting. The process exited successfully after 60 seconds. The renderer selected the RTX 4050 and the InputFusion backend loaded from the installed folder. This smoke run did not repeat physical USB or Bluetooth controller testing.
+
+All archived payload hashes matched build-info.json. The public release assets were downloaded and checked against the local candidate hashes. The installer is unsigned. A clean Windows first-time runtime installation, mixed-monitor hot-plug and the intermittent rendering and Options issues remain pending.

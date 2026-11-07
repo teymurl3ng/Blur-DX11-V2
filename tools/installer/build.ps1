@@ -38,7 +38,7 @@ if ((Get-FileHash -LiteralPath (Join-Path $payload 'BlurInputFusion.dll')).Hash 
 $buildInfo = Join-Path $Stage 'build-info.json'
 if (!(Test-Path -LiteralPath $buildInfo)) { throw 'Missing build-info.json; prepare the stage with package.ps1' }
 $provenance = Get-Content -LiteralPath $buildInfo -Raw | ConvertFrom-Json
-if ($provenance.SourceDirty) { throw 'Package source has uncommitted changes' }
+if ($provenance.SourceDirty) { throw ('Package source has content changes: ' + ($provenance.SourceChangedFiles -join ',')) }
 if ($provenance.SourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'Invalid source commit in build-info.json' }
 if ((Get-FileHash -LiteralPath (Join-Path $payload 'BlurRebuilt.exe')).Hash -ne $provenance.ExecutableSHA256) { throw 'Game differs from build provenance' }
 foreach ($entry in $provenance.Files) {

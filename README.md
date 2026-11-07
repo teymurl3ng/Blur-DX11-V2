@@ -1,6 +1,6 @@
 # Blur DX11 V2
 
-A Windows x64 DX11 continuation of **Blur**, the 2010 racing game by Bizarre Creations, based on [uKER and the Blur Rebuilt contributorsâ€™ work](https://github.com/uKER/BlurRebuilt).
+A Windows x64 DX11 continuation of **Blur**, the 2010 racing game by Bizarre Creations, based on [uKER and the Blur Rebuilt contributorsÃ¢â‚¬â„¢ work](https://github.com/uKER/BlurRebuilt).
 
 ## Download and install
 
@@ -11,7 +11,7 @@ A Windows x64 DX11 continuation of **Blur**, the 2010 racing game by Bizarre Cre
 This is a preview. Race scenes can develop coloured rectangular corruption after race loading. Restarting the game has cleared affected sessions in reported tests. This issue is still being investigated.
 
 1. Install your existing PC copy of Blur. Windows 10 or 11, 64-bit, and a DirectX 11 graphics card are required.
-2. Download the file ending in `-Setup.exe` above and run it. Windows requests administrator access during installation.
+2. Download the file ending in `-Setup.exe` above and run it. This preview installer is unsigned, so Windows may show an unknown-publisher warning. Installation requests administrator access.
 3. Select your game folder containing `Blur.exe` and complete setup.
 4. Open **Blur DX11 V2** from the Start menu. An optional desktop shortcut is available during setup.
 
@@ -29,7 +29,7 @@ The retail executable is retained. Saves are shared with retail Blur under `%APP
 
 The release also provides `BlurDX11V2-<version>.zip`. Extract its contents into your installed Blur folder and run `BlurRebuilt.exe`. A current Microsoft Visual C++ x64 runtime is required for this method. [Microsoft runtime download](https://aka.ms/vc14/vc_redist.x64.exe)
 
-GitHubâ€™s green **Code â†’ Download ZIP** button downloads the source code. The runnable installer and portable package are in **Releases**.
+GitHubÃ¢â‚¬â„¢s green **Code Ã¢â€ â€™ Download ZIP** button downloads the source code. The runnable installer and portable package are in **Releases**.
 
 ## Included improvements
 
@@ -49,13 +49,13 @@ Local acceptance tests used an NVIDIA RTX 4050 Laptop GPU, the laptop panel and 
 
 ## Online multiplayer
 
-Online play uses Amax Emu. The package includes its compatibility host, but the Amax Emu client and account configuration are separate steps. Place the client files in `amax_client_files` and follow the serviceâ€™s instructions. [Amax Emu setup](https://amax-emu.com/how_to_play)
+Online play uses Amax Emu. The package includes its compatibility host, but the Amax Emu client and account configuration are separate steps. Place the client files in `amax_client_files` and follow the serviceÃ¢â‚¬â„¢s instructions. [Amax Emu setup](https://amax-emu.com/how_to_play)
 
 ## Build from source
 
 The installer is the normal download for players. Developers can use the generation order and prerequisites documented in the build references. Prepare the pinned controller dependency with `powershell -File tools/inputfusion/setup.ps1`. Run `tools/build.sh` for the standard x64 Release pipeline, or `python tools/build/build.py` from a configured Windows developer environment.
 
-[Build reference](docs/agent-reference/build.md) Â· [x64 notes](docs/blur1pcdx11/x64.md) Â· [Controller and graphics implementation](docs/blur1pcdx11/additions.md)
+[Build reference](docs/agent-reference/build.md) Ã‚Â· [x64 notes](docs/blur1pcdx11/x64.md) Ã‚Â· [Controller and graphics implementation](docs/blur1pcdx11/additions.md)
 
 The release workflow creates a draft preview with the setup, portable ZIP, build metadata and checksums after package tests pass. A maintainer verifies gameplay before publishing the draft. Normal pushes build the package for verification without publishing a release.
 

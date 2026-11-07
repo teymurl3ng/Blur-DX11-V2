@@ -91,7 +91,7 @@ jobs:
 
       - name: Restore x64 OpenSSL
         id: openssl
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: _work/vendor_x64/openssl-x64
           key: openssl-0.9.8i-x64-${{ hashFiles('tools/demonware_cmake/build_openssl_x64.cmd') }}
@@ -112,6 +112,13 @@ jobs:
           $global:LASTEXITCODE = 0
           cmd /c "tools\demonware_cmake\build_openssl_x64.cmd _work\vendor_x64\openssl-0.9.8i _work\vendor_x64\openssl-x64"
           if ($LASTEXITCODE -ne 0) { throw "build_openssl_x64.cmd exited $LASTEXITCODE" }
+
+      - name: Save verified OpenSSL dependency
+        if: steps.openssl.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: _work/vendor_x64/openssl-x64
+          key: ${{ steps.openssl.outputs.cache-primary-key }}
 
       - name: Prepare pinned controller backend
         run: ./tools/inputfusion/setup.ps1
@@ -150,7 +157,7 @@ jobs:
       # timestamps, which a fresh checkout makes newer than any restored output.
       - name: Restore compiled shaders
         id: shaders
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             _work/build/gen/fx11
@@ -168,6 +175,15 @@ jobs:
           $code = $LASTEXITCODE
           python tools/jam2cmake/errsum.py _work/build/amax.log
           if ($code -ne 0) { Get-Content _work/build/amax.log -Tail 60; throw "build exited $code" }
+
+      - name: Save verified compiled shaders
+        if: steps.shaders.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            _work/build/gen/fx11
+            _work/build/gen/dx11_builtins
+          key: ${{ steps.shaders.outputs.cache-primary-key }}
 
       - name: Package
         run: |
@@ -224,8 +240,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:TAG $env:BLUR_SETUP "$env:BLUR_SETUP.json" $env:BLUR_ZIP _work/release/SHA256SUMS.txt --target $env:GITHUB_SHA --title "Blur DX11 V2 $env:TAG" --notes-file docs/blur1pcdx11/preview-release.md --draft --prerelease
-          if ($LASTEXITCODE -ne 0) { throw "gh release create exited $LASTEXITCODE" }
+          $existing = gh release view $env:TAG --json tagName --jq .tagName 2>$null
+          if ($LASTEXITCODE -eq 0 -and $existing -eq $env:TAG) {
+            Write-Host 'A release already exists for this tag. This candidate is retained in the workflow artifacts.'
+          } else {
+            gh release create $env:TAG $env:BLUR_SETUP "$env:BLUR_SETUP.json" $env:BLUR_ZIP _work/release/SHA256SUMS.txt --target $env:GITHUB_SHA --title "Blur DX11 V2 $env:TAG" --notes-file docs/blur1pcdx11/preview-release.md --draft --prerelease
+            if ($LASTEXITCODE -ne 0) { throw "gh release create exited $LASTEXITCODE" }
+          }
 
       - name: Keep the build log
         if: failure()

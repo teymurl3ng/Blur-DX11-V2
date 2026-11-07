@@ -1122,3 +1122,8 @@ Verified: documented standard x64 tools/build.sh variant regenerated source list
 Blocked: none for release packaging. Online racing/non-ASCII locales remain unverified as recorded in T259/T261.
 Publication: pushed 344925828d8bb6b6e214a0f9cca9aad344d0257f to rebuilt/master and confirmed the remote ref, release copy command, CMake host dependency, host sources and build script through the GitHub API. The default Git credential lacked workflow scope; the already-authenticated GitHub CLI credential had it, and the retry succeeded without changing stored credentials.
 Next: the user can create v1.6 from published master. No lower-phase merge, tag or GitHub release is part of T271.
+
+
+## 2026-11-08 - session Codex release - T286 preview live, hosted follow-up
+
+Built and tested the independent source, branded setup, packaged current game and effects, verified archive hashes, passed legacy migration and installed race/menu checks, published v2.0.0-preview.1 and downloaded all public assets for hash verification. Canonical Amax.exe/PDB delivered in this checkout's _work/run. README now links directly to setup and distinguishes source download, portable package and prerequisites. The first hosted Master compile passed, but source-state detection rejected generated file status. Corrected to a normalized content diff, regression-tested it and retained successful dependency/shader caches before later steps. Next: verify the hosted follow-up, then close T286. Release details and remaining runtime coverage are in contribution-verification.md and analysis.md.
