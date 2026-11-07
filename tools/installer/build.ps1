@@ -16,7 +16,8 @@ $payload = Join-Path $work 'payload'
 New-Item -ItemType Directory -Force $payload | Out-Null
 $files = @('BlurRebuilt.exe','AmaxClientHost.exe','BlurInputFusion.dll','README.md',
     'InputFusion-Licenses\NOTICE.txt','InputFusion-Licenses\LGPL-3.0.txt','InputFusion-Licenses\GPL-3.0.txt',
-    'InputFusion-Licenses\SDL-LICENSE.txt','InputFusion-Licenses\Detours-LICENSE.md')
+    'InputFusion-Licenses\SDL-LICENSE.txt','InputFusion-Licenses\Detours-LICENSE.md',
+    'docs\blur1pcdx11\additions.md','docs\blur1pcdx11\contribution-verification.md')
 $effects = if ($EffectsDirectory) { (Resolve-Path -LiteralPath $EffectsDirectory).Path } else { Join-Path $Stage 'fx11' }
 if (!(Test-Path -LiteralPath (Join-Path $effects 'effects.index'))) { throw 'Missing packaged effects.index' }
 $files += @([IO.Directory]::EnumerateFiles($effects, '*', [IO.SearchOption]::AllDirectories) | Where-Object {
@@ -37,7 +38,7 @@ if ((Get-FileHash -LiteralPath (Join-Path $payload 'BlurInputFusion.dll')).Hash 
 $manifest = Join-Path $work 'payload-files.txt'
 $files | Set-Content -LiteralPath $manifest -Encoding ascii
 $dependencies = & (Join-Path $PSScriptRoot 'prepare.ps1') -InnoCompiler $InnoCompiler -RedistPath $RedistPath
-$name = 'BlurDX11V2-'+$Version+'-Setup'
+$name = 'BlurRebuilt-'+$Version+'-Setup'
 if ($InstallerTest) { $name += '-Fixture' }
 $compilerArgs = @('/Qp',('/DPayloadDir='+$payload),('/DManifestFile='+$manifest),
     ('/DOutputDir='+$OutputDirectory),('/DSetupName='+$name),('/DReleaseVersion='+$Version),

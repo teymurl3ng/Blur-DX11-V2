@@ -1,0 +1,153 @@
+// [Blur1PCDX11] Native DXGI mode enumeration.
+#include "stdafx.h"
+#include "Display/Manager/D3D11/D3D11Manager.h"
+#include <d3d11.h>
+#include <dxgi1_6.h>
+#include <cstring>
+#include <vector>
+namespace Display { namespace D3D11 {
+// [Blur2PC] T272: choose the render adapter explicitly on hybrid laptops.
+// Keep system selection available for controlled comparisons.
+IDXGIAdapter1* C_D3D11Manager::SelectRenderAdapter()
+{
+    char preference[16] = {};
+    GetEnvironmentVariableA("BLUR_DX11_GPU", preference, sizeof(preference));
+    if (_stricmp(preference, "system") == 0) return nullptr;
+    IDXGIFactory6* factory = nullptr;
+    IDXGIAdapter1* adapter = nullptr;
+    if (SUCCEEDED(CreateDXGIFactory1(__uuidof(IDXGIFactory6), reinterpret_cast<void**>(&factory))))
+    {
+        for (UINT index = 0; SUCCEEDED(factory->EnumAdapterByGpuPreference(index,
+            DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, __uuidof(IDXGIAdapter1),
+            reinterpret_cast<void**>(&adapter))); ++index)
+        {
+            DXGI_ADAPTER_DESC1 description = {};
+            adapter->GetDesc1(&description);
+            if (!(description.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) break;
+            adapter->Release(); adapter = nullptr;
+        }
+        factory->Release();
+    }
+    return adapter;
+}
+
+
+// [Blur2PC] Display ownership can differ from rendering ownership on hybrid laptops.
+static IDXGIOutput* MonitorOutput(IDXGIFactory1* factory, HMONITOR target)
+{
+    const POINT origin = {};
+    MONITORINFOEXW monitor = {}; monitor.cbSize = sizeof(monitor);
+    if (!GetMonitorInfoW(target ? target : MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY), &monitor)) return nullptr;
+    IDXGIAdapter1* adapter = nullptr;
+    for (UINT a = 0; SUCCEEDED(factory->EnumAdapters1(a, &adapter)); ++a)
+    {
+        IDXGIOutput* output = nullptr;
+        for (UINT o = 0; SUCCEEDED(adapter->EnumOutputs(o, &output)); ++o)
+        {
+            DXGI_OUTPUT_DESC desc = {};
+            const bool match = SUCCEEDED(output->GetDesc(&desc)) &&
+                _wcsicmp(desc.DeviceName, monitor.szDevice) == 0;
+            if (match) { adapter->Release(); return output; }
+            output->Release();
+        }
+        adapter->Release();
+    }
+    return nullptr;
+}
+C_D3D11Manager::C_D3D11Manager() {}
+C_D3D11Manager::~C_D3D11Manager() { Shutdown(); }
+bool C_D3D11Manager::IsInitialised() { return m_Factory != nullptr; }
+bool C_D3D11Manager::Initialise()
+{
+    if (m_Factory) return true;
+    if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&m_Factory)))) return false;
+    IDXGIAdapter1* adapter = SelectRenderAdapter();
+    if (adapter || SUCCEEDED(m_Factory->EnumAdapters1(0,&adapter)))
+    {
+        IDXGIOutput* output = MonitorOutput(m_Factory, m_Monitor);
+        if (output)
+        {
+            // [Blur2PC] T276: resolution selection must not silently switch a 60 Hz TV to
+            // the first enumerated mode (often 24 Hz). Preserve its current refresh when
+            // that resolution supports it; otherwise leave refresh selection to the driver.
+            DXGI_OUTPUT_DESC outputDesc = {};
+            DEVMODEW desktop = {}; desktop.dmSize = sizeof(desktop);
+            const bool haveDesktop = SUCCEEDED(output->GetDesc(&outputDesc)) &&
+                EnumDisplaySettingsW(outputDesc.DeviceName, ENUM_CURRENT_SETTINGS, &desktop);
+            UINT count = 0;
+            output->GetDisplayModeList(DXGI_FORMAT_B8G8R8A8_UNORM,0,&count,nullptr);
+            std::vector<DXGI_MODE_DESC> modes(count);
+            if (count && SUCCEEDED(output->GetDisplayModeList(DXGI_FORMAT_B8G8R8A8_UNORM,0,&count,modes.data())))
+                for (const auto& native : modes)
+                {
+                    if (native.Width < 640 || native.Height < 480) continue;
+                    S32 index = FindVideoMode(native.Width,native.Height,E_Format_A8R8G8B8);
+                    if(index < 0)
+                    {
+                        C_VideoMode mode = {};
+                        mode.m_Width=native.Width;mode.m_Height=native.Height;mode.m_Format=E_Format_A8R8G8B8;
+                        mode.m_RefreshRate=0; // driver default until the current refresh is found
+                        mode.m_WideScreen=false;mode.m_HiDef=false;m_VideoModeList.PushBack(mode);
+                        index = m_VideoModeList.Size() - 1;
+                    }
+                    if(haveDesktop && native.RefreshRate.Denominator)
+                    {
+                        // Win32 exposes integer Hz; round fractional rates rather than
+                        // truncating 59.94 to 59 when matching the current display mode.
+                        const U32 refresh = static_cast<U32>((static_cast<UINT64>(native.RefreshRate.Numerator) +
+                            native.RefreshRate.Denominator / 2) / native.RefreshRate.Denominator);
+                        if(refresh == desktop.dmDisplayFrequency)
+                            m_VideoModeList[index].m_RefreshRate = desktop.dmDisplayFrequency;
+                    }
+                }
+            output->Release();
+        }
+        ID3D11Device* device = nullptr; ID3D11DeviceContext* context = nullptr; D3D_FEATURE_LEVEL feature;
+        if (SUCCEEDED(D3D11CreateDevice(adapter,D3D_DRIVER_TYPE_UNKNOWN,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&device,&feature,&context)))
+        {
+            const E_Multisample samples[] = {E_Multisample_None,E_Multisample_2,E_Multisample_4,E_Multisample_8,E_Multisample_16};
+            for (auto sample : samples)
+            {
+                UINT count=sample==E_Multisample_None ? 1 : static_cast<UINT>(sample), colour=0,depth=0;
+                device->CheckMultisampleQualityLevels(DXGI_FORMAT_B8G8R8A8_UNORM,count,&colour);
+                device->CheckMultisampleQualityLevels(DXGI_FORMAT_D24_UNORM_S8_UINT,count,&depth);
+                if(colour && depth) { C_Multisample item={true,true,E_Format_X8R8G8B8,E_Format_D24S8,sample};m_MultisampleList.PushBack(item); }
+            }
+            context->Release();device->Release();
+        }
+        adapter->Release();
+    }
+    return true;
+}
+bool C_D3D11Manager::SetWindow(HWND window)
+{
+    HMONITOR monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
+    if (monitor == m_Monitor) return false;
+    Shutdown();
+    m_Monitor = monitor;
+    Initialise();
+    return true;
+}
+void C_D3D11Manager::Shutdown()
+{ m_MultisampleList.Destroy();m_VideoModeList.Destroy();if(m_Factory){m_Factory->Release();m_Factory=nullptr;} }
+S32 C_D3D11Manager::GetMultisampleCount() const {return m_MultisampleList.Size();}
+const C_Multisample& C_D3D11Manager::GetMultisample(S32 i) const {return m_MultisampleList[i];}
+S32 C_D3D11Manager::GetVideoModeCount() const {return m_VideoModeList.Size();}
+const C_VideoMode& C_D3D11Manager::GetVideoMode(S32 i) {return m_VideoModeList[i];}
+S32 C_D3D11Manager::FindMultisample(E_Multisample value) const
+{for(S32 i=0;i<m_MultisampleList.Size();++i)if(m_MultisampleList[i].m_Multisample==value)return i;return -1;}
+S32 C_D3D11Manager::FindVideoMode(U32 w,U32 h,E_Format f)
+{for(S32 i=0;i<m_VideoModeList.Size();++i)if(m_VideoModeList[i].m_Width==w && m_VideoModeList[i].m_Height==h && m_VideoModeList[i].m_Format==f)return i;return -1;}
+bool C_D3D11Manager::GetVideoMode(C_VideoMode* mode) {return GetDesktopVideoMode(mode);}
+bool C_D3D11Manager::GetDesktopVideoMode(C_VideoMode* mode)
+{
+    if(!mode)return false;DEVMODEA native={};native.dmSize=sizeof(native);
+    MONITORINFOEXA monitor = {}; monitor.cbSize = sizeof(monitor);
+    const char* device = m_Monitor && GetMonitorInfoA(m_Monitor, &monitor) ? monitor.szDevice : nullptr;
+    if(!EnumDisplaySettingsA(device,ENUM_CURRENT_SETTINGS,&native))return false;
+    mode->m_Width=native.dmPelsWidth;mode->m_Height=native.dmPelsHeight;
+    mode->m_Format=E_Format_A8R8G8B8;mode->m_RefreshRate=native.dmDisplayFrequency;
+    mode->m_WideScreen=false;mode->m_HiDef=false;return true;
+}
+} }
+
