@@ -16,4 +16,4 @@ See contribution-verification.md for the tested build and installer results. Eac
 
 ## Upgrade and uninstall
 
-V2 upgrades an earlier Blur Rebuilt setup in the same game folder. It keeps the existing setup identity and backup history so uninstall can restore files from before the original setup. Use a separate game folder for a second independent installation. Uninstall through Windows Installed apps.
+V2 upgrades an earlier Blur Rebuilt setup in the same game folder. It keeps the existing setup identity and backup history so uninstall can restore files from before the original setup. Setup manages one registered installation. Use the portable ZIP in another Blur folder for an additional copy. Uninstall through Windows Installed apps.

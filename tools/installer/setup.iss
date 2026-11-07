@@ -46,6 +46,9 @@ Source: "{#RedistFile}"; DestName: "vc_redist.x64.exe"; Flags: dontcopy
 #ifndef InstallerTest
 [Tasks]
 Name: desktopicon; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
+[InstallDelete]
+Type: files; Name: "{autoprograms}\Blur Rebuilt.lnk"
+Type: files; Name: "{autodesktop}\Blur Rebuilt.lnk"
 [Icons]
 Name: "{autoprograms}\Blur DX11 V2"; Filename: "{app}\BlurRebuilt.exe"; WorkingDir: "{app}"
 Name: "{autodesktop}\Blur DX11 V2"; Filename: "{app}\BlurRebuilt.exe"; WorkingDir: "{app}"; Tasks: desktopicon
