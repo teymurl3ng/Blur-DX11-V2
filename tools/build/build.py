@@ -37,6 +37,7 @@ run("headers", [sys.executable,j+"cpgen.py",*headers])
 run("shaders", [sys.executable,j+"shadergen.py","--json",manifest,"--out","_work/build/gen/shaders"])
 run("lua", [sys.executable,j+"luabundle.py","--json",manifest,"--out","_work/build/gen/blobs/amax_lua_bundle.cpp"])
 run("targets", [sys.executable,j+"gen_cmake.py","--json",manifest,"--out","cmake/targets.cmake"])
-run("configure", [cmake,"-S",".","-B","_work/build/vs","-G",generator,"-A","x64"])
+run("configure", [cmake,"-S",".","-B","_work/build/vs","-G",generator,"-A","x64",
+                  "-DPython3_EXECUTABLE=" + sys.executable])
 run("amax", [cmake,"--build","_work/build/vs","--config","Release","--target","Amax","--","-m:2","-v:m","-nologo"])
 subprocess.run([sys.executable,j+"errsum.py",str(work/"amax.log")],check=True)
