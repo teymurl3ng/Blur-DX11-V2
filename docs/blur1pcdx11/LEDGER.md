@@ -1127,3 +1127,8 @@ Next: the user can create v1.6 from published master. No lower-phase merge, tag 
 ## 2026-11-08 - session Codex release - T286 preview live, hosted follow-up
 
 Built and tested the independent source, branded setup, packaged current game and effects, verified archive hashes, passed legacy migration and installed race/menu checks, published v2.0.0-preview.1 and downloaded all public assets for hash verification. Canonical Amax.exe/PDB delivered in this checkout's _work/run. README now links directly to setup and distinguishes source download, portable package and prerequisites. The first hosted Master compile passed, but source-state detection rejected generated file status. Corrected to a normalized content diff, regression-tested it and retained successful dependency/shader caches before later steps. Next: verify the hosted follow-up, then close T286. Release details and remaining runtime coverage are in contribution-verification.md and analysis.md.
+
+
+## 2026-11-08 - session Codex release - T286 complete
+
+Hosted run42422040179 passed at699a2d95, including Master build, setup variants, legacy migration/restoration, checksums and artifact upload. Public setup/ZIP/metadata/checksums were downloaded and hash-verified. Local installed race/menu screenshot is _work/t286/preview-graphics.png. T286 complete. Next: preview acceptance, the separately tracked race-colour investigation and clean Windows prerequisite coverage.
