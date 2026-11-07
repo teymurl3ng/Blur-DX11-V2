@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$Setup)
+param([Parameter(Mandatory=$true)][string]$Setup, [string]$PreviousSetup)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $Setup = (Resolve-Path -LiteralPath $Setup).Path
@@ -12,6 +12,11 @@ try {
         throw 'Fixture testing requires the bundled runtime version already installed; it will not install system prerequisites.'
     }
 } finally { if($runtimeKey){$runtimeKey.Dispose()};$runtimeBase.Dispose() }
+if ($PreviousSetup) {
+    $PreviousSetup = (Resolve-Path -LiteralPath $PreviousSetup).Path
+    $previousMetadata = Get-Content -LiteralPath ($PreviousSetup+'.json') -Raw | ConvertFrom-Json
+    if (!$previousMetadata.Fixture) { throw 'PreviousSetup must also be an InstallerTest build' }
+}
 $work = Join-Path $root ('_work\installer-tests\'+[Guid]::NewGuid().ToString('N'))
 $work = [IO.Path]::GetFullPath($work)
 if (!$work.StartsWith((Join-Path $root '_work\'),[StringComparison]::OrdinalIgnoreCase)) { throw 'Fixture outside workspace scratch' }
@@ -69,9 +74,27 @@ $p = Start-Process -FilePath $uninstaller.FullName -ArgumentList $uninstallArgs 
 if ($p.ExitCode -ne 0) { throw "Uninstall failed: $($p.ExitCode)" }
 foreach($name in $sentinels.Keys) { if([IO.File]::ReadAllText((Join-Path $game $name)) -ne $sentinels[$name]){throw "Original file changed: $name"} }
 if (Test-Path -LiteralPath (Join-Path $game 'BlurInputFusion.dll')) { throw 'New backend left after uninstall' }
+if ($PreviousSetup) {
+    $newSetup = $Setup
+    $Setup = $PreviousSetup
+    $legacyCode = Run-Setup $game 'legacy-install'
+    $Setup = $newSetup
+    if ($legacyCode -ne 0) { throw 'Legacy fixture install failed' }
+    $migrationCode = Run-Setup $game 'legacy-upgrade'
+    if ($migrationCode -ne 0) { throw 'Legacy-to-V2 upgrade failed' }
+    if ((Get-FileHash -LiteralPath (Join-Path $game 'BlurRebuilt.exe')).Hash -ne $metadata.ExecutableSHA256) { throw 'Upgrade installed the wrong game' }
+    $uninstaller = Get-ChildItem -LiteralPath (Join-Path $game '_BlurRebuiltSetup') -Filter 'unins*.exe' | Select-Object -First 1
+    $p = Start-Process -FilePath $uninstaller.FullName -ArgumentList $uninstallArgs -WindowStyle Hidden -Wait -PassThru
+    if ($p.ExitCode -ne 0) { throw 'Migrated uninstall failed' }
+    foreach ($name in $sentinels.Keys) {
+        if ([IO.File]::ReadAllText((Join-Path $game $name)) -ne $sentinels[$name]) { throw "Migration lost original file: $name" }
+    }
+    if (Test-Path -LiteralPath (Join-Path $game 'BlurInputFusion.dll')) { throw 'Migrated uninstall left the backend' }
+}
+
 $result = [ordered]@{InvalidTargetRejected=$true; BusyTargetRejected=$true; InstallExit=$installCode; UpdateExit=$updateCode;
     UninstallExit=$p.ExitCode; PayloadFiles=$managed.Count; GameAndBackendHashesMatch=$true; OriginalFilesRestored=$true;
     UnmanagedFilesPreserved=$true; ReadOnlyRetailAccepted=$true; DamagedMappingRejected=$true; SystemRuntimeExecution='not needed; installed version already satisfies bundled prerequisite';
-    CleanWindowsTest='pending'; FixtureDirectory=$work}
+    LegacyUpgradeTested=[bool]$PreviousSetup; CleanWindowsTest='pending'; FixtureDirectory=$work}
 $result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $work 'result.json')
 $result | ConvertTo-Json

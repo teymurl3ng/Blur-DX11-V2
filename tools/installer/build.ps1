@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Force $payload | Out-Null
 $files = @('BlurRebuilt.exe','AmaxClientHost.exe','BlurInputFusion.dll','README.md',
     'InputFusion-Licenses\NOTICE.txt','InputFusion-Licenses\LGPL-3.0.txt','InputFusion-Licenses\GPL-3.0.txt',
     'InputFusion-Licenses\SDL-LICENSE.txt','InputFusion-Licenses\Detours-LICENSE.md',
-    'docs\blur1pcdx11\additions.md','docs\blur1pcdx11\contribution-verification.md')
+    'docs\blur1pcdx11\additions.md','docs\blur1pcdx11\contribution-verification.md','docs\blur1pcdx11\preview-release.md')
 $effects = if ($EffectsDirectory) { (Resolve-Path -LiteralPath $EffectsDirectory).Path } else { Join-Path $Stage 'fx11' }
 if (!(Test-Path -LiteralPath (Join-Path $effects 'effects.index'))) { throw 'Missing packaged effects.index' }
 $files += @([IO.Directory]::EnumerateFiles($effects, '*', [IO.SearchOption]::AllDirectories) | Where-Object {
@@ -35,10 +35,25 @@ foreach ($name in $files) {
     [IO.File]::Copy($source, $target, $false)
 }
 if ((Get-FileHash -LiteralPath (Join-Path $payload 'BlurInputFusion.dll')).Hash -ne '242E16A3A5904EB9068BD442C6A466FD983DBBE7851022704985DCE3FB6EC408') { throw 'Backend hash mismatch' }
+$buildInfo = Join-Path $Stage 'build-info.json'
+if (!(Test-Path -LiteralPath $buildInfo)) { throw 'Missing build-info.json; prepare the stage with package.ps1' }
+$provenance = Get-Content -LiteralPath $buildInfo -Raw | ConvertFrom-Json
+if ($provenance.SourceDirty) { throw 'Package source has uncommitted changes' }
+if ($provenance.SourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'Invalid source commit in build-info.json' }
+if ((Get-FileHash -LiteralPath (Join-Path $payload 'BlurRebuilt.exe')).Hash -ne $provenance.ExecutableSHA256) { throw 'Game differs from build provenance' }
+foreach ($entry in $provenance.Files) {
+    if ($entry.Path -match '(^[\\/]|:|\.\.)') { throw 'Invalid provenance path' }
+    $packagedFile = Join-Path $payload $entry.Path
+    if (!(Test-Path -LiteralPath $packagedFile) -or (Get-FileHash -LiteralPath $packagedFile).Hash -ne $entry.SHA256) {
+        throw "Payload differs from build provenance: $($entry.Path)"
+    }
+}
+Copy-Item -LiteralPath $buildInfo -Destination (Join-Path $payload 'build-info.json')
+$files += 'build-info.json'
 $manifest = Join-Path $work 'payload-files.txt'
 $files | Set-Content -LiteralPath $manifest -Encoding ascii
 $dependencies = & (Join-Path $PSScriptRoot 'prepare.ps1') -InnoCompiler $InnoCompiler -RedistPath $RedistPath
-$name = 'BlurRebuilt-'+$Version+'-Setup'
+$name = 'BlurDX11V2-'+$Version+'-Setup'
 if ($InstallerTest) { $name += '-Fixture' }
 $compilerArgs = @('/Qp',('/DPayloadDir='+$payload),('/DManifestFile='+$manifest),
     ('/DOutputDir='+$OutputDirectory),('/DSetupName='+$name),('/DReleaseVersion='+$Version),
@@ -48,7 +63,7 @@ $compilerArgs += (Join-Path $PSScriptRoot 'setup.iss')
 & $dependencies.Compiler @compilerArgs
 if ($LASTEXITCODE -ne 0) { throw "Installer compilation failed: $LASTEXITCODE" }
 $output = Join-Path $OutputDirectory ($name+'.exe')
-[ordered]@{Version=$Version; PayloadFiles=$files.Count; ExecutableSHA256=(Get-FileHash -LiteralPath (Join-Path $payload 'BlurRebuilt.exe')).Hash;
+[ordered]@{Version=$Version; SourceCommit=$provenance.SourceCommit; Configuration=$provenance.Configuration; PayloadFiles=$files.Count; ExecutableSHA256=(Get-FileHash -LiteralPath (Join-Path $payload 'BlurRebuilt.exe')).Hash;
     InputFusionSHA256=(Get-FileHash -LiteralPath (Join-Path $payload 'BlurInputFusion.dll')).Hash;
     RuntimeVersion=$dependencies.RuntimeVersion; RuntimeSHA256=(Get-FileHash -LiteralPath $dependencies.Redist).Hash;
     CompilerSHA256=(Get-FileHash -LiteralPath $dependencies.Compiler).Hash; InstallerSHA256=(Get-FileHash -LiteralPath $output).Hash;

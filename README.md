@@ -1,152 +1,90 @@
 # Blur DX11 V2
 
-Blur DX11 V2 continues the Windows DX11 rebuild of **Blur**, the 2010 game by Bizarre Creations. It builds on [uKER and the Blur Rebuilt contributors’ work](https://github.com/uKER/BlurRebuilt).
+A Windows x64 DX11 continuation of **Blur**, the 2010 racing game by Bizarre Creations, based on [uKER and the Blur Rebuilt contributors’ work](https://github.com/uKER/BlurRebuilt).
 
-## Additions on this development branch
+## Download and install
 
-This is a development preview. Release validation and clean-Windows prerequisite tests are tracked in [the verification notes](docs/blur1pcdx11/contribution-verification.md).
+**[Download the preview installer](https://github.com/teymurl3ng/Blur-DX11-V2/releases/download/v2.0.0-preview.1/BlurDX11V2-v2.0.0-preview.1-Setup.exe)**
 
-This branch adds bundled InputFusion controller support, a per-monitor DPI fix
-for cropped fullscreen windows, explicit high-performance GPU selection, and a
-saved Maximum FPS control in the graphics menu.
-See [build instructions and verification](docs/blur1pcdx11/additions.md) for the
-pinned dependency, optional original-input build, comparison switches and limits.
+[Release notes, portable ZIP and SHA-256 checksums](https://github.com/teymurl3ng/Blur-DX11-V2/releases/tag/v2.0.0-preview.1)
 
-## What's new
+This is a preview. Race scenes can develop coloured rectangular corruption after race loading. Restarting the game has cleared affected sessions in reported tests. This issue is still being investigated.
 
-The original game was a 32-bit executable using DirectX 9, and had numerous issues when framerate was allowed
-to go over 60 FPS.
-This project intends to solve all of that.
+1. Install your existing PC copy of Blur. Windows 10 or 11, 64-bit, and a DirectX 11 graphics card are required.
+2. Download the file ending in `-Setup.exe` above and run it. Windows requests administrator access during installation.
+3. Select your game folder containing `Blur.exe` and complete setup.
+4. Open **Blur DX11 V2** from the Start menu. An optional desktop shortcut is available during setup.
 
-### DirectX 11
+Setup installs the rebuilt game, matching shader effects, InputFusion controller support and the required Microsoft x64 C++ runtime together. Installation works offline after downloading the setup file. It uses the data from your existing Blur installation.
 
-The original DirectX 9 renderer has been replaced with a DirectX 11 one. All shaders had to be recompiled
-for the new API.
+Connect a DualSense with a USB data cable or pair it in Windows Bluetooth. InputFusion provides controls and vibration without a controller translation app. If the backend fails to load, the game falls back to Windows XInput. Direct DualSense support then requires correcting the backend load failure.
 
-### HDR
+### Upgrading and uninstalling
 
-Made possible by the switch to DX11, this version of the game supports real HDR.
-On an HDR monitor with HDR turned on in Windows, the game will detect your display's peak brightness, and
-headlights, neon, street lamps, power-ups and the sky will be able to shine brighter than the rest of the picture.
-Menus and the HUD stay at normal brightness.
+Close the game before updating. V2 upgrades a previous Blur Rebuilt setup in the same folder and retains its backup history. Use a separate game folder for another independent installation. Windows Installed apps lists **Blur DX11 V2** after setup, and uninstall restores the files saved by the original installation backup.
 
-### Unlocked frame rate
+The retail executable is retained. Saves are shared with retail Blur under `%APPDATA%\Bizarre Creations\Blur`. Back up that folder before testing a preview.
 
-The original game was designed around 60 fps, and some things (cars, cameras, audio, particles, menus, etc.)
-misbehaved the farther you went above that.
-This version runs with unlocked frame rate and everything behaves as expected.
+### Portable installation
 
-### Decreased audio latency
+The release also provides `BlurDX11V2-<version>.zip`. Extract its contents into your installed Blur folder and run `BlurRebuilt.exe`. A current Microsoft Visual C++ x64 runtime is required for this method. [Microsoft runtime download](https://aka.ms/vc14/vc_redist.x64.exe)
 
-The retail game had pretty noticeable audio latency, especially when audio quality was set to high.
-This should now be fixed as well.
+GitHub’s green **Code → Download ZIP** button downloads the source code. The runnable installer and portable package are in **Releases**.
 
-### Dynamic switching of input glyphs
+## Included improvements
 
-Retail Blur doesn't show Xbox input hints when navigating the menus, even when the glyphs were there (they
-are shown when joining a split screen game an other rare occasions).
-We now feature dynamic switching of the on-screen glyphs as input is detected.
+- The inherited native 64-bit DX11 renderer, HDR support, frame timing changes and ultrawide work.
+- Bundled InputFusion 0.4.1 with DualSense controls and vibration tested over USB and Bluetooth.
+- Per-monitor DPI awareness, explicit high-performance GPU selection and display mode handling.
+- A saved Maximum FPS control and a graphics panel that keeps all eight rows visible.
+- Texture-lock lifetime, particle allocation and two shader-interface repairs.
+- Save creation and photo enumeration repairs, plus installer backup and restoration checks.
+- Developer panels and performance displays require the explicit diagnostics switch during normal player launches.
 
-### Ultra widescreen support
+## Known issues and testing
 
-The menus and race intro/outro have been fixed for ultra widescreen displays (tested on 32:9).
+Coloured race corruption remains open. Intermittent blank Options, mixed-monitor hot-plug, and prerequisite installation on a clean Windows machine need further testing. [Verification details](docs/blur1pcdx11/contribution-verification.md)
 
-### 64-bit
+Local acceptance tests used an NVIDIA RTX 4050 Laptop GPU, the laptop panel and a TCL 4K TV. Controller tests used DualSense over USB and Bluetooth. Hardware-specific results and outstanding checks are recorded with each preview.
 
-The game is now a native 64-bit application.
+## Online multiplayer
 
-## Online multiplayer support
+Online play uses Amax Emu. The package includes its compatibility host, but the Amax Emu client and account configuration are separate steps. Place the client files in `amax_client_files` and follow the service’s instructions. [Amax Emu setup](https://amax-emu.com/how_to_play)
 
-Online multiplayer is supported via Amax Emu.
-To set it up, unpack the Amax Emu client zip file into a folder called `amax_client_files`.
-The rest of the setup is the same as described on [Amax Emu's instruction page](https://amax-emu.com/how_to_play).
+## Build from source
 
-## Requirements
+The installer is the normal download for players. Developers can use the generation order and prerequisites documented in the build references. Prepare the pinned controller dependency with `powershell -File tools/inputfusion/setup.ps1`. Run `tools/build.sh` for the standard x64 Release pipeline, or `python tools/build/build.py` from a configured Windows developer environment.
 
-- An installed copy of Blur for PC
-- Windows 10 or 11, 64-bit
-- A DirectX 11 graphics card
-- [Microsoft Visual C++ Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+[Build reference](docs/agent-reference/build.md) · [x64 notes](docs/blur1pcdx11/x64.md) · [Controller and graphics implementation](docs/blur1pcdx11/additions.md)
 
-## Installation
-
-For a validated release, run its `BlurRebuilt-<version>-Setup.exe`. Confirm your
-existing Blur folder, then install. Setup installs the game executable, effects,
-InputFusion controller support and notices together, and installs the bundled
-Microsoft x64 C++ runtime if needed. It requires no downloads during installation.
-Open **Blur Rebuilt** from the Start menu afterwards. Your original Blur.exe and
-saves are preserved. Files replaced by setup are backed up and restored when
-the installed additions are uninstalled.
-
-The ZIP remains available for a manual installation:
-
-1. Copy `BlurRebuilt.exe`, `AmaxClientHost.exe`, `BlurInputFusion.dll`, the `InputFusion-Licenses` folder
-   and the complete `fx11` folder into your Blur install folder. That's
-   the one containing `Blur.exe`, usually `C:\Program Files (x86)\Activision\Blur(TM)`.
-2. Run `BlurRebuilt.exe`.
-
-The x64 Visual C++ runtime listed above is required by both the game and the
-bundled controller backend. Install a current version; it must be at least as
-recent as the tools used to build the binaries. SDL and Detours are included
-inside the backend DLL, so they need no separate installation. If the backend
-cannot load, the game uses Windows XInput; direct DualSense support is then
-unavailable. No DS4Windows, ViGEm, Steam or NVIDIA App installation is required
-for this integration. Connect the controller by USB or pair it in Windows.
-
-Your original `Blur.exe` isn't affected, and you can keep using it.
-
-Before your first race, back up `%APPDATA%\Bizarre Creations\Blur`. Your save is
-stored there, and both versions of the game use it.
+The release workflow creates a draft preview with the setup, portable ZIP, build metadata and checksums after package tests pass. A maintainer verifies gameplay before publishing the draft. Normal pushes build the package for verification without publishing a release.
 
 ## Optional settings
 
-These Windows environment variables are available if you want to adjust things:
-
 | Variable | Effect |
 |---|---|
-| `BLUR_DX11_HDR=off` | Play in SDR even with Windows HDR on |
-| `BLUR_DX11_HDR_PEAK_NITS=1000` | Set your display's peak brightness manually |
-| `BLUR_DX11_HDR_PAPER_WHITE_NITS=200` | Set the brightness of menus and everyday surfaces |
-| `BLUR2PC_FRAMELIMIT=120` | Cap the frame rate |
+| `BLUR_DX11_HDR=off` | Use SDR output |
+| `BLUR_DX11_HDR_PEAK_NITS=1000` | Override display peak brightness |
+| `BLUR_DX11_HDR_PAPER_WHITE_NITS=200` | Override paper-white brightness |
+| `BLUR2PC_FRAMELIMIT=120` | Override the render FPS cap |
+| `BLUR2PC_DIAGNOSTICS=1` | Enable developer diagnostics |
 
-## Intro videos
+## Credits and version history
 
-The intro videos don't play. The game goes straight to the title screen. That's expected.
+Bizarre Creations created Blur. uKER and the Blur Rebuilt contributors developed the upstream rebuild. xan105 develops InputFusion, which includes SDL and Detours. Dependency notices are bundled with the controller backend. [InputFusion](https://github.com/xan105/InputFusion)
 
-## Changelog
+### V2 preview
 
-<table>
-  <tr>
-  </tr>
-   <td><strong>v1.6 (2026/11/02)</strong></td>
-   <td>Fixed an audio timing issue that could cause stuttering or repeating sound on some systems<br>Fixed release process to include previously missing Amax Emu client</td>
-  </tr>
-  <tr>
-    <td><strong>v1.5 (2026/10/24)</strong></td>
-    <td>More ultra widescreen fixes<br>Support for online multiplayer via Amax Emu</td>
-  </tr>
-  <tr>
-    <td><strong>v1.4 (2026/10/23)</strong></td>
-    <td>Fixed menus for ultra widescreen</td>
-  </tr>
-  <tr>
-    <td><strong>v1.3 (2026/10/23)</strong></td>
-    <td>Implemented dynamic switching of on-screen input glyphs</td>
-  </tr>
-  <tr>
-    <td><strong>v1.2 (2026/10/22)</strong></td>
-    <td>Decreased audio latency in high quality setting</td>
-  </tr>
-  <tr>
-    <td><strong>v1.1 (2026/10/22)</strong></td>
-    <td>Fix race HUD in ultra widescreen</td>
-  </tr>
-  <tr>
-    <td><strong>v1.0 (2026/10/21)</strong></td>
-    <td>Initial release</td>
-  </tr>
-</table>
+The preview adds the controller integration, display and settings repairs, save fixes, and automatic installer described above. [Preview notes](docs/blur1pcdx11/preview-release.md)
 
-## Comments
+### Upstream Blur Rebuilt
 
-For comments and general discussion, go to https://www.reddit.com/r/BlurGame
+| Version | Changes recorded upstream |
+|---|---|
+| 1.6 | Audio timing correction and Amax client packaging |
+| 1.5 | Additional ultrawide fixes and Amax Emu integration |
+| 1.4 | Ultrawide menus |
+| 1.3 | Dynamic controller glyphs |
+| 1.2 | Reduced audio latency |
+| 1.1 | Ultrawide race HUD |
+| 1.0 | Initial rebuild |

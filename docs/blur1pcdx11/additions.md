@@ -27,8 +27,8 @@ source changes, and no controller app is required for the InputFusion path.
 
 ## Build
 
-Use the prerequisites and generation order in [the build reference](https://github.com/uKER/BlurRebuilt/blob/master/docs/agent-reference/build.md)
-and [x64 notes](https://github.com/uKER/BlurRebuilt/blob/master/docs/blur1pcdx11/x64.md). Prepare the additional pinned dependency first:
+Use the prerequisites and generation order in [the build reference](../agent-reference/build.md)
+and [x64 notes](x64.md). Prepare the additional pinned dependency first:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/inputfusion/setup.ps1
@@ -58,7 +58,7 @@ PerMonitorV2 awareness, and an exact 1920x1080 physical fullscreen window.
 Fresh-project dependency setup, optional configuration and build results are
 recorded in the phase ledger. These are compatibility and input additions,
 not a measured performance improvement or a claim that all upstream rendering
-issues are resolved. No GitHub fork, commit, push or PR is implied by local setup.
+issues are resolved. Blur DX11 V2 release builds record the source revision in build-info.json.
 
 ## Graphics menu
 
@@ -82,7 +82,7 @@ extension versions default to Unlimited. A manually supplied integer from 1
 through 1000 is retained as an extra menu choice; 0 means Unlimited.
 No profile/save-game binary layout changes.
 
-`BLUR2PC_FRAMELIMIT` remains a startup override (0–1000); menu changes work live
+`BLUR2PC_FRAMELIMIT` remains a startup override (0â€“1000); menu changes work live
 after startup. A launcher setting that variable will override the saved choice
 on the next launch, so ordinary launchers should leave it unset. This controls
 rendering only; the existing fixed-step simulation remains unchanged. New labels

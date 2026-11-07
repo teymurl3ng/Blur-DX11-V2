@@ -10,16 +10,19 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to create (for example v1.0)
+        description: Preview tag to create (for example v2.0.0-preview.1)
         required: true
       publish:
-        description: Publish the release (off keeps the zip as a workflow artifact only)
+        description: Create a draft preview release after package checks pass
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: write
@@ -29,12 +32,18 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 240
     env:
-      TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+      TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || format('preview-{0}', github.sha) }}
     defaults:
       run:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate package version
+        run: |
+          if ($env:TAG -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$') { throw 'Invalid package version' }
 
       - uses: actions/setup-python@v5
         with:
@@ -162,58 +171,60 @@ jobs:
 
       - name: Package
         run: |
-          $ErrorActionPreference = 'Stop'
-          $stage = '_work/package'
-          $effects = '_work/build/gen/fx11/effects'
-          New-Item -ItemType Directory -Force "$stage/fx11" | Out-Null
-          Copy-Item _work/build/vs/MinSizeRel/Amax.exe "$stage/BlurRebuilt.exe"
-          Copy-Item _work/build/vs/amax_client_host/MinSizeRel/AmaxClientHost.exe $stage
-          Copy-Item _work/build/vs/MinSizeRel/BlurInputFusion.dll $stage
-          Copy-Item _work/build/vs/MinSizeRel/InputFusion-Licenses $stage -Recurse
-          Copy-Item README.md $stage
-          New-Item -ItemType Directory -Force "$stage/docs/blur1pcdx11" | Out-Null
-          Copy-Item docs/blur1pcdx11/additions.md "$stage/docs/blur1pcdx11/additions.md"
-          Copy-Item docs/blur1pcdx11/contribution-verification.md "$stage/docs/blur1pcdx11/contribution-verification.md"
-          $root = (Resolve-Path $effects).Path
-          Get-ChildItem $effects -Recurse -File | Where-Object { $_.Name -in 'effects.index', 'effects.samplers' -or $_.Extension -eq '.fxo' } | ForEach-Object {
-            $target = Join-Path "$stage/fx11" $_.FullName.Substring($root.Length + 1)
-            New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
-            Copy-Item $_.FullName $target
-          }
-          if (-not (Test-Path "$stage/fx11/effects.index")) { throw 'fx11/effects.index missing' }
-          $zip = "_work/BlurRebuilt-$env:TAG.zip"
-          Compress-Archive "$stage/*" $zip
-          "BLUR_ZIP=$zip" >> $env:GITHUB_ENV
-          Write-Host "${zip}: $((Get-ChildItem $stage -Recurse -File).Count) files"
+          $package = ./tools/installer/package.ps1 -Version $env:TAG -Configuration MinSizeRel
+          "BLUR_STAGE=$($package.Stage)" >> $env:GITHUB_ENV
+          "BLUR_ZIP=$($package.Zip)" >> $env:GITHUB_ENV
 
-      - name: Keep the zip
-        uses: actions/upload-artifact@v4
-        with:
-          name: BlurRebuilt-${{ env.TAG }}
-          path: ${{ env.BLUR_ZIP }}
-
-      - name: Build offline installer
+      - name: Build offline installer and fixture
         run: |
-          ./tools/installer/build.ps1 -Stage _work/package -Version $env:TAG -OutputDirectory _work
-          if ($LASTEXITCODE -ne 0) { throw 'Offline installer build failed' }
-          $setup = "_work/BlurRebuilt-$env:TAG-Setup.exe"
-          if (-not (Test-Path -LiteralPath $setup)) { throw 'Offline installer missing' }
+          ./tools/installer/build.ps1 -Stage $env:BLUR_STAGE -Version $env:TAG -OutputDirectory _work/release
+          ./tools/installer/build.ps1 -Stage $env:BLUR_STAGE -Version $env:TAG -OutputDirectory _work/release -InstallerTest
+          $setup = "_work/release/BlurDX11V2-$env:TAG-Setup.exe"
+          $fixture = "_work/release/BlurDX11V2-$env:TAG-Setup-Fixture.exe"
+          if (!(Test-Path $setup) -or !(Test-Path $fixture)) { throw 'Installer build incomplete' }
           "BLUR_SETUP=$setup" >> $env:GITHUB_ENV
+          "BLUR_FIXTURE=$fixture" >> $env:GITHUB_ENV
 
-      - name: Keep the installer
+      - name: Test setup and legacy upgrade
+        run: |
+          # Install prerequisites explicitly on this disposable hosted runner.
+          $dependencies = ./tools/installer/prepare.ps1
+          $runtime = Start-Process $dependencies.Redist -ArgumentList '/install /quiet /norestart' -Wait -PassThru -WindowStyle Hidden
+          if ($runtime.ExitCode -notin 0,3010,1638) { throw "Runtime installation failed $($runtime.ExitCode)" }
+          $legacy = '_work/legacy-installer/tools/installer'
+          New-Item -ItemType Directory -Force $legacy | Out-Null
+          foreach ($name in @('setup.iss','build.ps1','prepare.ps1')) {
+            git show "8606c57d1cfa16427d268a46048c80dd1af5837b:tools/installer/$name" | Set-Content "$legacy/$name" -Encoding utf8
+            if ($LASTEXITCODE -ne 0) { throw "Missing legacy installer $name" }
+          }
+          & "$legacy/build.ps1" -Stage $env:BLUR_STAGE -Version legacy-test -OutputDirectory _work/release -InstallerTest -InnoCompiler $dependencies.Compiler -RedistPath $dependencies.Redist
+          ./tools/installer/test.ps1 -Setup $env:BLUR_FIXTURE -PreviousSetup _work/release/BlurRebuilt-legacy-test-Setup-Fixture.exe
+
+      - name: Create release checksums
+        run: |
+          $assets = @($env:BLUR_SETUP, $env:BLUR_ZIP, "$env:BLUR_SETUP.json")
+          $assets | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLower()
+            "$hash  $([IO.Path]::GetFileName($_))"
+          } | Set-Content _work/release/SHA256SUMS.txt -Encoding ascii
+
+      - name: Keep release candidates
         uses: actions/upload-artifact@v4
         with:
-          name: BlurRebuilt-${{ env.TAG }}-Setup
+          name: BlurDX11V2-${{ env.TAG }}
           path: |
             ${{ env.BLUR_SETUP }}
             ${{ env.BLUR_SETUP }}.json
+            ${{ env.BLUR_ZIP }}
+            _work/release/SHA256SUMS.txt
+          if-no-files-found: error
 
-      - name: Publish release
-        if: github.event_name == 'push' || inputs.publish
+      - name: Create draft preview
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:TAG $env:BLUR_SETUP $env:BLUR_ZIP --target $env:GITHUB_SHA --title "Blur Rebuilt $env:TAG" --generate-notes
+          gh release create $env:TAG $env:BLUR_SETUP "$env:BLUR_SETUP.json" $env:BLUR_ZIP _work/release/SHA256SUMS.txt --target $env:GITHUB_SHA --title "Blur DX11 V2 $env:TAG" --notes-file docs/blur1pcdx11/preview-release.md --draft --prerelease
           if ($LASTEXITCODE -ne 0) { throw "gh release create exited $LASTEXITCODE" }
 
       - name: Keep the build log

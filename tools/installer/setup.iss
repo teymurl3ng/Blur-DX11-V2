@@ -4,20 +4,22 @@
   #error Build this script using tools/installer/build.ps1
 #endif
 [Setup]
+; Keep the existing installation identity and backup directory so earlier setup
+; installations upgrade in place and retain the original restoration snapshot.
 #ifdef InstallerTest
 AppId={{55CBAFE6-BE43-40FA-AC09-00689D83F2A8}
-AppName=Blur Rebuilt Installer Test
+AppName=Blur DX11 V2 Installer Test
 PrivilegesRequired=lowest
 CreateUninstallRegKey=no
 UsePreviousAppDir=no
 #else
 AppId={{70BEFC9C-9D12-4E54-B8A7-09DD75CC9071}
-AppName=Blur Rebuilt
+AppName=Blur DX11 V2
 PrivilegesRequired=admin
 #endif
 AppVersion={#ReleaseVersion}
-AppPublisher=Blur Rebuilt contributors
-AppPublisherURL=https://github.com/uKER/BlurRebuilt
+AppPublisher=Blur DX11 V2 contributors
+AppPublisherURL=https://github.com/teymurl3ng/Blur-DX11-V2
 DefaultDirName={code:FindGameFolder}
 AppendDefaultDirName=no
 DisableDirPage=no
@@ -45,8 +47,8 @@ Source: "{#RedistFile}"; DestName: "vc_redist.x64.exe"; Flags: dontcopy
 [Tasks]
 Name: desktopicon; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
 [Icons]
-Name: "{autoprograms}\Blur Rebuilt"; Filename: "{app}\BlurRebuilt.exe"; WorkingDir: "{app}"
-Name: "{autodesktop}\Blur Rebuilt"; Filename: "{app}\BlurRebuilt.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{autoprograms}\Blur DX11 V2"; Filename: "{app}\BlurRebuilt.exe"; WorkingDir: "{app}"
+Name: "{autodesktop}\Blur DX11 V2"; Filename: "{app}\BlurRebuilt.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 #endif
 [Code]
 var PayloadFiles: TArrayOfString;
